@@ -243,6 +243,7 @@ mod tests {
 
     #[test]
     fn test_error_cases() {
+        assert_postfix_error(" ", PostfixError::EmptyString);
         assert_postfix_error("(2 + 3", PostfixError::ParseError);
         assert_postfix_error("2 + 3)", PostfixError::ParseError);
         assert_postfix_error("2 +", PostfixError::ParseError);
