@@ -1,3 +1,5 @@
+use std::io::{self, Write};
+
 
 mod in_to_pos {
     use std::{collections::LinkedList, fmt::{Debug, Display}, str::FromStr};
@@ -83,7 +85,7 @@ mod in_to_pos {
                 return Err(PostfixError::EmptyString);
             }
         
-            let re = Regex::new(r"\d+(\.\d+)?|[\+\-\*/\^\(\)]").map_err(|_| PostfixError::ParseError)?;
+            let re = Regex::new(r"\-?\d+(\.\d+)?|[\+\-\*/\^\(\)]").map_err(|_| PostfixError::ParseError)?;
             if re.split(infix)
                 .any(|s| !s.trim().is_empty() && !s.trim().chars().all(|ch| ch.is_whitespace()))
             {
@@ -92,13 +94,20 @@ mod in_to_pos {
         
             let mut stack: Vec<Tokens> = Vec::new();
             let mut postfix = Postfix { stack: LinkedList::new() };
+            let mut last_is_num = false;
         
             for token in re.find_iter(infix).map(|mat| mat.as_str()) {
                 if let Ok(num) = token.parse::<f64>() {
                     postfix.stack.push_back(Tokens::Num(num));
+                    last_is_num = true;
                 } else {
                     match token {
-                        "(" => stack.push(Tokens::OpP),
+                        "(" => {
+                            if last_is_num {
+                                stack.push(Tokens::Mul); // 2(5) can mean 2 * (5) 
+                            }
+                            stack.push(Tokens::OpP);
+                        },
                         ")" => {
                             while let Some(top) = stack.pop() {
                                 if matches!(top, Tokens::OpP) {
@@ -118,6 +127,7 @@ mod in_to_pos {
                             stack.push(parsed_token);
                         }
                     }
+                    last_is_num = false;
                 }
             }
         
@@ -154,12 +164,20 @@ mod in_to_pos {
     }
 }
 
+fn parse_expression(expr: &str) {
+    match in_to_pos::Postfix::from_infix(expr).and_then(|p| p.evaluate()) {
+        Ok(result) => {println!("{expr} = {result}")},
+        Err(err) => println!("Error: {err:?}"),
+    }
+}
+
 fn main() {
-    match in_to_pos::Postfix::from_infix("12 + (5 * 6) ^ 2 ") {
-        Ok(p) => {
-            println!("{p}");
-            println!("Result: {:?}", p.evaluate());
-        },
-        Err(err) => println!("{err:?}"),
+    let mut input = String::new();
+    println!("Input expression");
+    print!(">> ");
+    _ = io::stdout().flush();
+    match io::stdin().read_line(&mut input).map(|_| input.trim()) {
+        Ok(inp) => parse_expression(inp),
+        Err(_) => println!("Input error..."),
     }
 }
